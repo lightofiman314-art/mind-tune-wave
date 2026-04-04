@@ -1,35 +1,27 @@
 import { useState, useCallback } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Volume2, VolumeX, LogOut, LogIn } from "lucide-react";
 import { frequencies } from "@/lib/frequencies";
-import { playFrequency, stopFrequency, setVolume } from "@/lib/audioEngine";
 import FrequencyCard from "@/components/FrequencyCard";
-import WaveVisualizer from "@/components/WaveVisualizer";
 import FloatingOrbs from "@/components/FloatingOrbs";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const [activeHz, setActiveHz] = useState<number | null>(null);
-  const [volume, setVolumeState] = useState(0.3);
+  const [volume] = useState(0.3);
+  const navigate = useNavigate();
+  const { user, hasUsedFreeTrial, signOut } = useAuth();
 
-  const handleToggle = useCallback(
+  const handleCardTap = useCallback(
     (hz: number) => {
-      if (activeHz === hz) {
-        stopFrequency();
-        setActiveHz(null);
-      } else {
-        playFrequency(hz, volume);
-        setActiveHz(hz);
+      // If trial used and not logged in, redirect to auth
+      if (!user && hasUsedFreeTrial) {
+        navigate("/auth");
+        return;
       }
+      navigate(`/player/${hz}`);
     },
-    [activeHz, volume]
+    [user, hasUsedFreeTrial, navigate]
   );
-
-  const handleVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value);
-    setVolumeState(v);
-    setVolume(v);
-  };
-
-  const activeFreq = frequencies.find((f) => f.hz === activeHz);
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -48,44 +40,39 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Volume */}
-          <div className="flex items-center gap-2">
-            {volume === 0 ? (
-              <VolumeX size={18} className="text-muted-foreground" />
+          <div className="flex items-center gap-3">
+            {user ? (
+              <button
+                onClick={signOut}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut size={14} /> Sign Out
+              </button>
             ) : (
-              <Volume2 size={18} className="text-primary" />
+              <button
+                onClick={() => navigate("/auth")}
+                className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
+              >
+                <LogIn size={14} /> Sign In
+              </button>
             )}
-            <input
-              type="range"
-              min="0"
-              max="0.6"
-              step="0.01"
-              value={volume}
-              onChange={handleVolume}
-              className="w-24 h-1 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
-            />
           </div>
         </div>
       </header>
 
-      {/* Active visualizer */}
-      {activeHz && (
-        <div className="container max-w-6xl mx-auto px-4 pt-6">
-          <div className="rounded-xl border border-primary/20 bg-card/50 backdrop-blur p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-3 h-3 rounded-full bg-primary animate-pulse-glow" />
-              <span className="text-sm font-medium text-primary">
-                Now Playing: {activeFreq?.hz} Hz — {activeFreq?.name}
-              </span>
-            </div>
-            <WaveVisualizer isPlaying={true} hz={activeHz} />
+      {/* Free trial banner */}
+      {!user && !hasUsedFreeTrial && (
+        <div className="container max-w-6xl mx-auto px-4 pt-4">
+          <div className="rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-center">
+            <p className="text-xs text-primary">
+              🎵 Try one frequency for free — create an account to unlock all 20!
+            </p>
           </div>
         </div>
       )}
 
       {/* Frequency grid */}
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        {/* Category sections */}
         {(["solfeggio", "brainwave", "special"] as const).map((cat) => {
           const catFreqs = frequencies.filter((f) => f.category === cat);
           const labels = {
@@ -103,8 +90,8 @@ const Index = () => {
                   <FrequencyCard
                     key={freq.hz}
                     freq={freq}
-                    isPlaying={activeHz === freq.hz}
-                    onToggle={() => handleToggle(freq.hz)}
+                    isPlaying={false}
+                    onToggle={() => handleCardTap(freq.hz)}
                   />
                 ))}
               </div>
