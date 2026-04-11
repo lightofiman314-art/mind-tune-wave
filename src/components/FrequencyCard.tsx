@@ -1,5 +1,5 @@
 import { Play, Pause } from "lucide-react";
-import type { FrequencyData } from "@/lib/frequencies";
+import type { FrequencyData, FrequencyCategory } from "@/lib/frequencies";
 
 interface FrequencyCardProps {
   freq: FrequencyData;
@@ -7,10 +7,18 @@ interface FrequencyCardProps {
   onToggle: () => void;
 }
 
-const categoryBadge: Record<string, string> = {
-  solfeggio: "bg-primary/10 text-primary border-primary/20",
-  brainwave: "bg-secondary/10 text-secondary border-secondary/20",
-  special: "bg-accent/10 text-accent border-accent/20",
+const categoryBadge: Record<FrequencyCategory, string> = {
+  stop_overthinking: "bg-primary/10 text-primary border-primary/20",
+  study_fast: "bg-secondary/10 text-secondary border-secondary/20",
+  stress_relief: "bg-accent/10 text-accent border-accent/20",
+  control_emotions: "bg-primary/10 text-primary border-primary/20",
+};
+
+const categoryLabel: Record<FrequencyCategory, string> = {
+  stop_overthinking: "Overthinking",
+  study_fast: "Study",
+  stress_relief: "Stress",
+  control_emotions: "Emotions",
 };
 
 const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
@@ -23,7 +31,6 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
           : "border-border bg-card hover:border-primary/20"
       }`}
     >
-      {/* Playing indicator */}
       {isPlaying && (
         <div className="absolute inset-0 rounded-xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 animate-wave" />
@@ -41,7 +48,7 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
                 categoryBadge[freq.category]
               }`}
             >
-              {freq.category}
+              {categoryLabel[freq.category]}
             </span>
           </div>
           <p className="text-sm font-medium text-primary mb-0.5">{freq.name}</p>
@@ -61,7 +68,6 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
         </div>
       </div>
 
-      {/* Mini wave bars for playing state */}
       {isPlaying && (
         <div className="flex items-end gap-0.5 mt-3 h-4">
           {Array.from({ length: 20 }).map((_, i) => (

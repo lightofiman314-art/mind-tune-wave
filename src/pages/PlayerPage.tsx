@@ -4,6 +4,9 @@ import { ArrowLeft, Play, Pause, Repeat, Volume2, VolumeX } from "lucide-react";
 import { frequencies } from "@/lib/frequencies";
 import { playFrequency, stopFrequency, setVolume } from "@/lib/audioEngine";
 import { useAuth } from "@/contexts/AuthContext";
+import PlayerCanvas from "@/components/PlayerCanvas";
+
+const DURATION = 90; // seconds
 
 const PlayerPage = () => {
   const { hz } = useParams<{ hz: string }>();
@@ -14,19 +17,39 @@ const PlayerPage = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [repeat, setRepeat] = useState(false);
   const [volume, setVolumeState] = useState(0.3);
-  const [elapsed, setElapsed] = useState(0);
+  const [remaining, setRemaining] = useState(DURATION);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
 
-  // Auth gate: if trial used & not logged in, redirect
+  // Auth gate
   useEffect(() => {
     if (!user && hasUsedFreeTrial) {
       navigate("/auth", { replace: true });
     }
   }, [user, hasUsedFreeTrial, navigate]);
 
-  // Mark trial on first play
+  // Media Session API for notification controls
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !freq) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: `${freq.hz} Hz — ${freq.name}`,
+      artist: "Mind Control — Sound Therapy",
+      album: freq.description,
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (!isPlaying) handlePlay();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      if (isPlaying) handlePlay();
+    });
+
+    return () => {
+      navigator.mediaSession.setActionHandler("play", null);
+      navigator.mediaSession.setActionHandler("pause", null);
+    };
+  }, [freq, isPlaying]);
+
   const handlePlay = useCallback(() => {
     if (!freq) return;
     if (isPlaying) {
@@ -37,117 +60,38 @@ const PlayerPage = () => {
       playFrequency(freq.hz, volume);
       setIsPlaying(true);
       if (!user) markTrialUsed();
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+
+      timerRef.current = setInterval(() => {
+        setRemaining((r) => {
+          if (r <= 1) {
+            // Time's up
+            stopFrequency();
+            setIsPlaying(false);
+            if (timerRef.current) clearInterval(timerRef.current);
+            return DURATION;
+          }
+          return r - 1;
+        });
+      }, 1000);
     }
   }, [freq, isPlaying, volume, user, markTrialUsed]);
+
+  // Handle repeat: when remaining resets to DURATION and repeat is on, auto-play
+  useEffect(() => {
+    if (remaining === DURATION && repeat && !isPlaying && freq) {
+      // Small delay to let state settle
+      const t = setTimeout(() => handlePlay(), 300);
+      return () => clearTimeout(t);
+    }
+  }, [remaining, repeat, isPlaying, freq]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopFrequency();
       if (timerRef.current) clearInterval(timerRef.current);
-      cancelAnimationFrame(animRef.current);
     };
   }, []);
-
-  // Canvas animation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !freq) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-
-    const w = () => canvas.offsetWidth;
-    const h = () => canvas.offsetHeight;
-    let t = 0;
-
-    // Orbs
-    const orbs = Array.from({ length: 8 }, (_, i) => ({
-      x: Math.random() * 300,
-      y: Math.random() * 300,
-      r: 8 + Math.random() * 20,
-      speed: 0.3 + Math.random() * 0.7,
-      phase: i * 0.8,
-    }));
-
-    const draw = () => {
-      const cw = w();
-      const ch = h();
-      ctx.clearRect(0, 0, cw, ch);
-
-      t += isPlaying ? 0.02 : 0.005;
-
-      // Background gradient circles
-      const cx = cw / 2;
-      const cy = ch / 2;
-
-      if (isPlaying) {
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cw * 0.4);
-        grad.addColorStop(0, freq.gradientFrom + "20");
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, cw, ch);
-      }
-
-      // Orbs
-      orbs.forEach((orb) => {
-        const amp = isPlaying ? 1 : 0.2;
-        const ox = cx + Math.sin(t * orb.speed + orb.phase) * (cw * 0.3) * amp;
-        const oy = cy + Math.cos(t * orb.speed * 0.7 + orb.phase) * (ch * 0.25) * amp;
-        const pulse = isPlaying ? 1 + Math.sin(t * 3 + orb.phase) * 0.3 : 1;
-
-        const grad = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r * pulse * 2);
-        grad.addColorStop(0, freq.gradientFrom + (isPlaying ? "60" : "20"));
-        grad.addColorStop(0.5, freq.gradientTo + (isPlaying ? "30" : "10"));
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(ox, oy, orb.r * pulse * 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // Wave rings
-      if (isPlaying) {
-        const numRings = 4;
-        for (let i = 0; i < numRings; i++) {
-          const phase = (t * 2 + i * 1.5) % 6;
-          const radius = phase * cw * 0.12;
-          const alpha = Math.max(0, 1 - phase / 6);
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-          ctx.strokeStyle = freq.gradientFrom + Math.round(alpha * 40).toString(16).padStart(2, "0");
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      }
-
-      // Central waveform
-      ctx.beginPath();
-      const waveFreq = Math.min(freq.hz / 50, 8);
-      const waveAmp = isPlaying ? ch * 0.08 : ch * 0.02;
-      for (let x = 0; x < cw; x++) {
-        const y = cy + Math.sin((x / cw) * Math.PI * waveFreq + t * 3) * waveAmp * Math.sin((x / cw) * Math.PI);
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = freq.gradientFrom + (isPlaying ? "80" : "30");
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      animRef.current = requestAnimationFrame(draw);
-    };
-
-    animRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [freq, isPlaying]);
 
   const handleVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
@@ -169,10 +113,11 @@ const PlayerPage = () => {
     );
   }
 
+  const progress = ((DURATION - remaining) / DURATION) * 100;
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Canvas background */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      <PlayerCanvas freq={freq} isPlaying={isPlaying} />
 
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-4 py-4">
@@ -194,16 +139,25 @@ const PlayerPage = () => {
 
       {/* Content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
-        {/* Frequency display */}
         <div className="mb-2">
           <span className="text-6xl font-bold text-foreground tracking-tight">{freq.hz}</span>
           <span className="text-2xl text-muted-foreground ml-1">Hz</span>
         </div>
         <h2 className="text-xl font-semibold text-primary mb-1">{freq.name}</h2>
-        <p className="text-sm text-muted-foreground mb-8">{freq.description}</p>
+        <p className="text-sm text-muted-foreground mb-6">{freq.description}</p>
+
+        {/* Progress bar */}
+        <div className="w-full max-w-xs mb-2">
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-1000"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
 
         {/* Timer */}
-        <p className="text-lg font-mono text-foreground/60 mb-8">{formatTime(elapsed)}</p>
+        <p className="text-lg font-mono text-foreground/60 mb-8">{formatTime(remaining)} / {formatTime(DURATION)}</p>
 
         {/* Controls */}
         <div className="flex items-center gap-6">
@@ -225,7 +179,7 @@ const PlayerPage = () => {
           </button>
 
           <button
-            onClick={() => { setElapsed(0); }}
+            onClick={() => { setRemaining(DURATION); }}
             className="w-12 h-12 rounded-full flex items-center justify-center bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-medium"
           >
             Reset
