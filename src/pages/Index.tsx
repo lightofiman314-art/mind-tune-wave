@@ -1,19 +1,31 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Volume2, VolumeX, LogOut, LogIn } from "lucide-react";
-import { frequencies } from "@/lib/frequencies";
+import { LogOut, LogIn, Headphones } from "lucide-react";
+import { frequencies, categoryLabels, type FrequencyCategory } from "@/lib/frequencies";
 import FrequencyCard from "@/components/FrequencyCard";
 import FloatingOrbs from "@/components/FloatingOrbs";
 import { useAuth } from "@/contexts/AuthContext";
 
+const categoryOrder: FrequencyCategory[] = [
+  "stop_overthinking",
+  "study_fast",
+  "stress_relief",
+  "control_emotions",
+];
+
+const categoryIcons: Record<FrequencyCategory, string> = {
+  stop_overthinking: "🧠",
+  study_fast: "📚",
+  stress_relief: "🧘",
+  control_emotions: "💎",
+};
+
 const Index = () => {
-  const [volume] = useState(0.3);
   const navigate = useNavigate();
   const { user, hasUsedFreeTrial, signOut } = useAuth();
 
   const handleCardTap = useCallback(
     (hz: number) => {
-      // If trial used and not logged in, redirect to auth
       if (!user && hasUsedFreeTrial) {
         navigate("/auth");
         return;
@@ -27,7 +39,6 @@ const Index = () => {
     <div className="min-h-screen bg-background relative">
       <FloatingOrbs />
 
-      {/* Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
@@ -39,7 +50,6 @@ const Index = () => {
               Healing frequencies for mind & body
             </p>
           </div>
-
           <div className="flex items-center gap-3">
             {user ? (
               <button
@@ -60,9 +70,19 @@ const Index = () => {
         </div>
       </header>
 
+      {/* Headphones tip */}
+      <div className="container max-w-6xl mx-auto px-4 pt-4">
+        <div className="rounded-lg bg-muted/50 border border-border px-4 py-2.5 text-center flex items-center justify-center gap-2">
+          <Headphones size={16} className="text-primary" />
+          <p className="text-xs text-muted-foreground">
+            Use headphones 🎧 for better results
+          </p>
+        </div>
+      </div>
+
       {/* Free trial banner */}
       {!user && !hasUsedFreeTrial && (
-        <div className="container max-w-6xl mx-auto px-4 pt-4">
+        <div className="container max-w-6xl mx-auto px-4 pt-3">
           <div className="rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-center">
             <p className="text-xs text-primary">
               🎵 Try one frequency for free — create an account to unlock all 20!
@@ -73,17 +93,13 @@ const Index = () => {
 
       {/* Frequency grid */}
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        {(["solfeggio", "brainwave", "special"] as const).map((cat) => {
+        {categoryOrder.map((cat) => {
           const catFreqs = frequencies.filter((f) => f.category === cat);
-          const labels = {
-            solfeggio: "Solfeggio Frequencies",
-            brainwave: "Brainwave Entrainment",
-            special: "Special Frequencies",
-          };
           return (
             <section key={cat} className="mb-10">
-              <h2 className="text-sm uppercase tracking-widest text-muted-foreground mb-4 font-medium">
-                {labels[cat]}
+              <h2 className="text-sm uppercase tracking-widest text-muted-foreground mb-4 font-medium flex items-center gap-2">
+                <span>{categoryIcons[cat]}</span>
+                {categoryLabels[cat]}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {catFreqs.map((freq) => (
