@@ -70,8 +70,14 @@ const Index = () => {
         </div>
       </header>
 
+      <div className="container max-w-6xl mx-auto px-4 pt-4 text-center">
+        <p className="text-sm font-medium text-foreground">
+          Sync your frequency daily for peak mental clarity
+        </p>
+      </div>
+
       {/* Headphones tip */}
-      <div className="container max-w-6xl mx-auto px-4 pt-4">
+      <div className="container max-w-6xl mx-auto px-4 pt-3">
         <div className="rounded-lg bg-muted/50 border border-border px-4 py-2.5 text-center flex items-center justify-center gap-2">
           <Headphones size={16} className="text-primary" />
           <p className="text-xs text-muted-foreground">
