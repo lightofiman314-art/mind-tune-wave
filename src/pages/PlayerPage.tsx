@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import PlayerCanvas from "@/components/PlayerCanvas";
 
 const DURATION = 90; // seconds
+const LAST_LISTENED_KEY = "mind_control_last_listened";
 
 const PlayerPage = () => {
   const { hz } = useParams<{ hz: string }>();
@@ -82,6 +83,11 @@ const PlayerPage = () => {
       navigate("/auth", { replace: true });
     }
   }, [user, hasUsedFreeTrial, navigate]);
+
+  useEffect(() => {
+    if (!freq) return;
+    localStorage.setItem(LAST_LISTENED_KEY, String(freq.hz));
+  }, [freq]);
 
   // Media Session API for notification controls
   useEffect(() => {
