@@ -1,10 +1,12 @@
-import { Play, Pause } from "lucide-react";
+import { Heart, Play, Pause } from "lucide-react";
 import type { FrequencyData, FrequencyCategory } from "@/lib/frequencies";
 
 interface FrequencyCardProps {
   freq: FrequencyData;
   isPlaying: boolean;
   onToggle: () => void;
+  isFavorite?: boolean;
+  onFavoriteToggle?: () => void;
 }
 
 const categoryBadge: Record<FrequencyCategory, string> = {
@@ -21,10 +23,9 @@ const categoryLabel: Record<FrequencyCategory, string> = {
   control_emotions: "Emotions",
 };
 
-const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
+const FrequencyCard = ({ freq, isPlaying, onToggle, isFavorite = false, onFavoriteToggle }: FrequencyCardProps) => {
   return (
-    <button
-      onClick={onToggle}
+    <article
       className={`card-hover group relative w-full text-left rounded-xl border p-4 transition-all duration-300 ${
         isPlaying
           ? "border-primary/40 bg-primary/5 glow-primary"
@@ -55,9 +56,25 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
           <p className="text-xs text-muted-foreground leading-relaxed">
             {freq.description}
           </p>
+
+          <button
+            type="button"
+            onClick={onFavoriteToggle}
+            className={`mt-3 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold uppercase transition-colors ${
+              isFavorite
+                ? "border-primary/30 bg-primary/15 text-primary"
+                : "border-border bg-muted/50 text-muted-foreground hover:border-primary/30 hover:text-primary"
+            }`}
+          >
+            <Heart size={12} className={isFavorite ? "fill-current" : ""} />
+            {isFavorite ? "Favourited" : "Add to favourites"}
+          </button>
         </div>
 
-        <div
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={`Play ${freq.name}`}
           className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
             isPlaying
               ? "bg-primary text-primary-foreground animate-pulse-glow"
@@ -65,7 +82,7 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
           }`}
         >
           {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
-        </div>
+        </button>
       </div>
 
       {isPlaying && (
@@ -83,7 +100,7 @@ const FrequencyCard = ({ freq, isPlaying, onToggle }: FrequencyCardProps) => {
           ))}
         </div>
       )}
-    </button>
+    </article>
   );
 };
 
