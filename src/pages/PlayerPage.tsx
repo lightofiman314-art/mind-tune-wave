@@ -14,11 +14,67 @@ const PlayerPage = () => {
   const { user, hasUsedFreeTrial, markTrialUsed } = useAuth();
 
   const freq = frequencies.find((f) => f.hz === parseFloat(hz || "0"));
+  const currentIndex = freq ? frequencies.findIndex((f) => f.hz === freq.hz) : -1;
   const [isPlaying, setIsPlaying] = useState(false);
   const [repeat, setRepeat] = useState(false);
   const [volume, setVolumeState] = useState(0.3);
   const [remaining, setRemaining] = useState(DURATION);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const playingRef = useRef(false);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const pausePlayback = useCallback(() => {
+    stopFrequency();
+    playingRef.current = false;
+    setIsPlaying(false);
+    clearTimer();
+  }, [clearTimer]);
+
+  const startPlayback = useCallback(() => {
+    if (!freq) return;
+    clearTimer();
+    playFrequency(freq.hz, volume);
+    playingRef.current = true;
+    setIsPlaying(true);
+    if (!user) markTrialUsed();
+
+    timerRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          stopFrequency();
+          playingRef.current = false;
+          setIsPlaying(false);
+          clearTimer();
+          return DURATION;
+        }
+        return r - 1;
+      });
+    }, 1000);
+  }, [clearTimer, freq, markTrialUsed, user, volume]);
+
+  const handlePlay = useCallback(() => {
+    if (playingRef.current) {
+      pausePlayback();
+      return;
+    }
+    startPlayback();
+  }, [pausePlayback, startPlayback]);
+
+  const goToFrequency = useCallback((direction: "next" | "previous") => {
+    if (currentIndex < 0) return;
+    pausePlayback();
+    setRemaining(DURATION);
+    const nextIndex = direction === "next"
+      ? (currentIndex + 1) % frequencies.length
+      : (currentIndex - 1 + frequencies.length) % frequencies.length;
+    navigate(`/player/${frequencies[nextIndex].hz}`);
+  }, [currentIndex, navigate, pausePlayback]);
 
   // Auth gate
   useEffect(() => {
@@ -37,44 +93,19 @@ const PlayerPage = () => {
       album: freq.description,
     });
 
-    navigator.mediaSession.setActionHandler("play", () => {
-      if (!isPlaying) handlePlay();
-    });
-    navigator.mediaSession.setActionHandler("pause", () => {
-      if (isPlaying) handlePlay();
-    });
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    navigator.mediaSession.setActionHandler("play", startPlayback);
+    navigator.mediaSession.setActionHandler("pause", pausePlayback);
+    navigator.mediaSession.setActionHandler("nexttrack", () => goToFrequency("next"));
+    navigator.mediaSession.setActionHandler("previoustrack", () => goToFrequency("previous"));
 
     return () => {
       navigator.mediaSession.setActionHandler("play", null);
       navigator.mediaSession.setActionHandler("pause", null);
+      navigator.mediaSession.setActionHandler("nexttrack", null);
+      navigator.mediaSession.setActionHandler("previoustrack", null);
     };
-  }, [freq, isPlaying]);
-
-  const handlePlay = useCallback(() => {
-    if (!freq) return;
-    if (isPlaying) {
-      stopFrequency();
-      setIsPlaying(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-    } else {
-      playFrequency(freq.hz, volume);
-      setIsPlaying(true);
-      if (!user) markTrialUsed();
-
-      timerRef.current = setInterval(() => {
-        setRemaining((r) => {
-          if (r <= 1) {
-            // Time's up
-            stopFrequency();
-            setIsPlaying(false);
-            if (timerRef.current) clearInterval(timerRef.current);
-            return DURATION;
-          }
-          return r - 1;
-        });
-      }, 1000);
-    }
-  }, [freq, isPlaying, volume, user, markTrialUsed]);
+  }, [freq, goToFrequency, isPlaying, pausePlayback, startPlayback]);
 
   // Handle repeat: when remaining resets to DURATION and repeat is on, auto-play
   useEffect(() => {
