@@ -164,6 +164,21 @@ const Index = () => {
 
       {/* Frequency grid */}
       <main className="container max-w-6xl mx-auto px-4 py-8">
+        {lastListened && (
+          <section className="mb-10">
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-widest text-muted-foreground">
+              Continue listening
+            </h2>
+            <FrequencyCard
+              freq={lastListened}
+              isPlaying={false}
+              onToggle={() => handleCardTap(lastListened.hz)}
+              isFavorite={favoriteHz.includes(lastListened.hz)}
+              onFavoriteToggle={() => toggleFavorite(lastListened.hz)}
+            />
+          </section>
+        )}
+
         {categoryOrder.map((cat) => {
           const catFreqs = frequencies.filter((f) => f.category === cat);
           return (
@@ -188,21 +203,6 @@ const Index = () => {
           );
         })}
       </main>
-
-      {lastListened && (
-        <section className="container max-w-6xl mx-auto px-4 pb-8">
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-widest text-muted-foreground">
-            Continue listening
-          </h2>
-          <FrequencyCard
-            freq={lastListened}
-            isPlaying={false}
-            onToggle={() => handleCardTap(lastListened.hz)}
-            isFavorite={favoriteHz.includes(lastListened.hz)}
-            onFavoriteToggle={() => toggleFavorite(lastListened.hz)}
-          />
-        </section>
-      )}
     </div>
   );
 };
