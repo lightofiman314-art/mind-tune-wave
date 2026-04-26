@@ -15,6 +15,10 @@ export function playFrequency(hz: number, volume = 0.3) {
   stopFrequency();
   const ctx = getContext();
 
+  if (ctx.state === "suspended") {
+    void ctx.resume();
+  }
+
   // Main oscillator
   oscillator = ctx.createOscillator();
   gainNode = ctx.createGain();
