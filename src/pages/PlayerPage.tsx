@@ -114,15 +114,15 @@ const PlayerPage = () => {
       const t = setTimeout(() => handlePlay(), 300);
       return () => clearTimeout(t);
     }
-  }, [remaining, repeat, isPlaying, freq]);
+  }, [remaining, repeat, isPlaying, freq, handlePlay]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopFrequency();
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearTimer();
     };
-  }, []);
+  }, [clearTimer]);
 
   const handleVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value);
